@@ -2,6 +2,9 @@ package io.github.prismaplatform.common
 
 import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -36,18 +39,10 @@ value class Snowflake(val value: Long): Comparable<Snowflake> {
 }
 
 class SnowflakeNode(private val clusterId: Long, private val nodeId: Long) {
-    @Volatile
-    var lastGenerated = -1L
-    @Volatile
-    var sequence = 0L
-
     @Synchronized
     fun generate(): Snowflake {
         val timestamp = (System.currentTimeMillis() / 1000) - PRISMA_EPOCH
-        assert(timestamp >= lastGenerated)
-
-        sequence = if (timestamp == lastGenerated) sequence + 1 else 0
-        lastGenerated = timestamp
+        val sequence = SnowflakeService.generateSequenceId(timestamp).toLong()
 
         return Snowflake(timestamp, nodeId, clusterId, sequence)
     }
@@ -78,3 +73,35 @@ object SnowflakeAgeComparator: Comparator<Snowflake> {
 
 inline fun <reified T> snowflakeAgeComparator(crossinline selector: (T) -> Snowflake): Comparator<T> =
     Comparator { o1, o2 -> SnowflakeAgeComparator.compare(selector(o1), selector(o2)) }
+
+class SnowflakeService(val cluster: Long) {
+    private val nodes = ConcurrentHashMap<Long, SnowflakeNode>()
+
+    fun nextNode() = node(Thread.currentThread().id)
+
+    fun node(nodeId: Long): SnowflakeNode {
+        val existing = nodes[nodeId]
+        if (existing != null) return existing
+
+        val new = SnowflakeNode(cluster, nodeId)
+        nodes[nodeId] = new
+        return new
+    }
+
+    fun getNode(nodeId: Long): SnowflakeNode? = nodes[nodeId]
+
+    fun generate(): Snowflake =
+        nextNode().generate()
+
+    companion object {
+        private val sequenceIdAtomic = AtomicInteger(0)
+        private val lastTimestamp = AtomicLong(-1)
+
+        fun generateSequenceId(timestamp: Long): Int =
+            if (lastTimestamp.get() == timestamp) sequenceIdAtomic.incrementAndGet() else {
+                sequenceIdAtomic.set(0)
+                lastTimestamp.set(timestamp)
+                0
+            }
+    }
+}

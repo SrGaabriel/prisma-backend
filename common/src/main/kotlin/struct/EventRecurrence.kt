@@ -2,6 +2,7 @@ package io.github.prismaplatform.common.struct
 
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDateTime
+import kotlinx.serialization.Serializable
 
 abstract class EventRecurrence(val interval: Int, val period: DatePeriod) {
     abstract fun isRecurringOn(date: LocalDateTime): Boolean
@@ -29,6 +30,7 @@ abstract class EventRecurrence(val interval: Int, val period: DatePeriod) {
     }
 }
 
+@Serializable
 enum class EventRecurrenceType {
     NONE, DAILY, WEEKLY, MONTHLY, YEARLY;
 

@@ -1,8 +1,11 @@
 package io.github.prismaplatform.webserver
 
+import io.github.prismaplatform.common.SnowflakeService
 import io.github.prismaplatform.database.DatabaseService
 import io.github.prismaplatform.database.connection.PostgreDatabaseConnection
 import io.github.prismaplatform.webserver.auth.AuthService
+import io.github.prismaplatform.webserver.route.calendarRoute
+import io.github.prismaplatform.webserver.route.userRoute
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
@@ -60,7 +63,7 @@ fun Application.module() {
         PostgreDatabaseConnection(
             host = "127.0.0.1",
             port = "5432",
-            database = "vibra",
+            database = "prisma",
             username = "postgres",
             password = "underarm turbofan tilt buffer throwback jolly impotence john"
         )
@@ -72,13 +75,14 @@ fun Application.module() {
         modules(org.koin.dsl.module {
             single { authService }
             single { databaseService }
-
+            single { SnowflakeService(1) }
         })
     }
 
     routing {
         route("/api/v1/") {
-
+            userRoute()
+            calendarRoute()
         }
     }
 }

@@ -8,9 +8,10 @@ import io.github.prismaplatform.database.util.SnowflakeIdTable
 class User(id: SnowflakeEID): SnowflakeEntity(id) {
     companion object : SnowflakeEntityClass<User>(UserTable)
 
-    var username by UserTable.name
+    var name by UserTable.name
     var email by UserTable.email
     var password by UserTable.password
+    val events by CalendarEvent referrersOn CalendarEventTable.creator
 }
 
 object UserTable: SnowflakeIdTable(name="users") {
